@@ -1,17 +1,16 @@
 class Order < ActiveRecord::Base
-  attr_accessible :confirmed, :email, :extra, :fulfilled, :pc_hub_id, 
+  attr_accessible :confirmed, :email, :extra, :fulfilled,
     :phone, :user_id, :requests_attributes, :instructions
 
   belongs_to :user
-  #belongs_to :pc_hub
   has_many :requests
 
   validates_presence_of :user,   message: "unrecognized"
   accepts_nested_attributes_for :requests
 
   # UI wants users included with all output
-  def to_json
-    super(include: [:user, :requests])
+  def as_json(args)
+    super(args.merge(include: [{:user => {:include => :country}}, {:requests => {:include => :supply}}]))
   end
   default_scope eager_load(:user, :requests)
 
@@ -19,14 +18,13 @@ class Order < ActiveRecord::Base
 
   def self.human_attribute_name(attr, options={})
     { 
-      user:   "PCV ID",
-      pc_hub: "Location code"
+      user:   "PCV ID"
     }[attr] || super
   end
 
   def self.create_from_text data
-    user   = User.where(pcv_id: data[:pcvid]).first || raise("Unrecognized PCVID")
-    supply = Supply.where(shortcode: data[:shortcode]).first || raise("Unrecognized shortcode")
+    user   = User.lookup(data[:pcvid]) || raise("Unrecognized PCVID")
+    supply = Supply.lookup(data[:shortcode]) || raise("Unrecognized shortcode")
 
     create!({
       user_id:   user.try(:id),
@@ -44,6 +42,7 @@ class Order < ActiveRecord::Base
     if self.valid?
       "Your request has been processed and action will be taken within 24 hours."
     else
+      Rails.logger.info( errors.full_messages.join "," )
       errors.full_messages.join ","
     end
   end

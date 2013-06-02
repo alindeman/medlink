@@ -6,10 +6,9 @@ class User < ActiveRecord::Base
          :recoverable, :rememberable, :trackable, :validatable
 
   # Setup accessible (or protected) attributes for your model
-  attr_accessible :email, :password, :password_confirmation, :remember_me
-  # attr_accessible :title, :body
+  attr_accessible :email, :password, :password_confirmation, :remember_me,
+    :country_id
 
-  has_one :pc_hub
   belongs_to :country
   has_many :orders
   validates_presence_of :country
@@ -19,5 +18,9 @@ class User < ActiveRecord::Base
   end
   def is_admin?
     role == 'admin'
+  end
+
+  def self.lookup str
+    where(['lower(pcv_id) = ?', str.downcase]).first
   end
 end
